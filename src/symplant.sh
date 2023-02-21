@@ -30,8 +30,10 @@ read_entity() {
   # Get entity name, fields and data types
   PRIMARY='^#\[ORM\\Id\]$'
   COLUMN='^#\[ORM\\Column(\(.+\))?\]$'
-  FOREIGN1='^#\[ORM\\OneToMany(\(.+\))?\]$'
-  FOREIGN2='^#\[ORM\\ManyToOne(\(.+\))?\]$'
+  FOREIGN12='^#\[ORM\\OneToMany(\(.+\))?\]$'
+  FOREIGN21='^#\[ORM\\ManyToOne(\(.+\))?\]$'
+  FOREIGN11='^#\[ORM\\OneToOne(\(.+\))?\]$'
+  FOREIGN22='^#\[ORM\\ManyToMany(\(.+\))?\]$'
   CLASS='^class[[:blank:]]([A-Za-z]+)([[:space:]].*)?$'
   FIELD='^private[[:blank:]]\??([A-Za-z0-9]+)?[[:blank:]]?\$([A-Za-z0-9]+)'
 
@@ -39,12 +41,14 @@ read_entity() {
 
     [[ $line =~ $CLASS ]] && {
       entity="${BASH_REMATCH[1]}"
-      echo -e "\ntable( ${entity,,} ) {" >> "$UML_FILE"
+      echo -e "\ntable( ${entity} ) {" >> "$UML_FILE"
     }
 
     [[ $line =~ $PRIMARY ]] && primary=1
-    [[ $line =~ $FOREIGN1 ]] && foreign1=1
-    [[ $line =~ $FOREIGN2 ]] && foreign2=1
+    [[ $line =~ $FOREIGN12 ]] && foreign12=1
+    [[ $line =~ $FOREIGN21 ]] && foreign21=1
+    [[ $line =~ $FOREIGN11 ]] && foreign11=1
+    [[ $line =~ $FOREIGN22 ]] && foreign22=1
 
     [[ $line =~ $FIELD ]] && {
       field="${BASH_REMATCH[2]}"
@@ -57,24 +61,44 @@ read_entity() {
         unset primary
         continue
       }
-      [[ $foreign1 ]] && {
+      [[ $foreign12 ]] && {
         [[ $datatype == "Collection" ]] && {
-          unset foreign1
+          unset foreign12
           continue
         }
         echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
-        RELATIONS+=("${entity,,} }||--| ${datatype,,}")
-        unset foreign1
+        RELATIONS+=("${entity} }||--| ${datatype}")
+        unset foreign12
         continue
       }
-      [[ $foreign2 ]] && {
+      [[ $foreign21 ]] && {
         [[ $datatype == "Collection" ]] && {
-          unset foreign2
+          unset foreign21
           continue
         }
         echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
-        RELATIONS+=("${entity,,} }|--|| ${datatype,,}")
-        unset foreign2
+        RELATIONS+=("${entity} }|--|| ${datatype}")
+        unset foreign21
+        continue
+      }
+      [[ $foreign11 ]] && {
+        [[ $datatype == "Collection" ]] && {
+          unset foreign11
+          continue
+        }
+        echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
+        RELATIONS+=("${entity} }|--| ${datatype}")
+        unset foreign11
+        continue
+      }
+      [[ $foreign22 ]] && {
+        [[ $datatype == "Collection" ]] && {
+          unset foreign22
+          continue
+        }
+        echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
+        RELATIONS+=("${entity} }||--|| ${datatype}")
+        unset foreign22
         continue
       }
       
@@ -105,4 +129,4 @@ plantuml "$UML_FILE" || {
 
 echo "Done."
 
-feh -Z "$PNG_FILE"
+feh --zoom 100 "$PNG_FILE"
