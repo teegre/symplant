@@ -1,0 +1,107 @@
+@startuml
+!define table(x) entity x << (T, white) >>
+!define primary_key(x) <b><&key> x</b>
+!define column(x) <&media-record> x
+!define foreign_key(x) <&key> x
+
+table( accessory ) {
+  primary_key( id ) : int
+  column( name ) : string
+  column( detector ) : bool
+}
+
+table( container ) {
+  primary_key( id ) : int
+  column( serialNumber ) : string
+  column( capacity ) : float
+  column( fluidQuantity ) : float
+  foreign_key( fluid ) : Fluid <<FK>>
+}
+
+table( equipment ) {
+  primary_key( id ) : int
+  column( name ) : string
+  column( weight ) : float
+  column( co2EqTonnage ) : float
+  column( leakDetectionSystem ) : bool
+  column( controlFrequency ) : int
+  foreign_key( fluid ) : Fluid <<FK>>
+}
+
+table( fluid ) {
+  primary_key( id ) : int
+  column( name ) : string
+  foreign_key( fluidType ) : FluidType <<FK>>
+}
+
+table( fluidtype ) {
+  primary_key( id ) : int
+  column( name ) : string
+  column( flammable ) : bool
+}
+
+table( group ) {
+  primary_key( id ) : int
+  column( name ) : string
+}
+
+table( intervention ) {
+  primary_key( id ) : int
+  column( virginFluidQuantity ) : float
+  column( recycledFluidQuantity ) : float
+  column( regeneratedFluidQuantity ) : float
+  column( forProcessingFluidQuantity ) : float
+  column( bsffNumber ) : string
+  column( reusableFluidQuantity ) : float
+  column( collectedFluidDestination ) : string
+  column( remarks ) : string
+  foreign_key( interventionType ) : InterventionType <<FK>>
+  column( otherInterventionType ) : string
+  column( leaks ) : bool
+  foreign_key( equipment ) : Equipment <<FK>>
+  foreign_key( container ) : Container <<FK>>
+  foreign_key( accessory ) : Accessory <<FK>>
+  foreign_key( user ) : User <<FK>>
+  column( pdfPath ) : string
+}
+
+table( interventiontype ) {
+  primary_key( id ) : int
+  column( name ) : string
+}
+
+table( leakage ) {
+  primary_key( id ) : int
+  column( num ) : int
+  column( count ) : int
+  column( location ) : string
+  column( fixed ) : bool
+  foreign_key( intervention ) : Intervention <<FK>>
+}
+
+table( parameter ) {
+  primary_key( id ) : int
+  column( parameter ) : string
+  column( value ) : string
+}
+
+table( user ) {
+  primary_key( id ) : int
+  column( userId ) : string
+  column( roles ) : 
+  column( password ) : string
+  column( firstName ) : string
+  column( lastName ) : string
+  foreign_key( userGroup ) : Group <<FK>>
+}
+container }|--|| fluid
+equipment }|--|| fluid
+fluid }|--|| fluidtype
+intervention }|--|| interventiontype
+intervention }|--|| equipment
+intervention }|--|| container
+intervention }|--|| accessory
+intervention }|--|| user
+leakage }|--|| intervention
+user }|--|| group
+@enduml

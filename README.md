@@ -15,6 +15,10 @@ bash, plantuml, feh
 
 *  `path/to/symfony/project $ symplant`
 
+## Example
+
+![](example.png)
+
 ## Uninstall
 
 `$ rm ~/.local/bin/symplant`
