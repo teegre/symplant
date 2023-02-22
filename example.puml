@@ -1,107 +1,112 @@
 @startuml
+
 !define table(x) entity x << (T, white) >>
 !define primary_key(x) <b><&key> x</b>
 !define column(x) <&media-record> x
 !define foreign_key(x) <&key> x
 
-table( accessory ) {
+table( Accessory ) {
   primary_key( id ) : int
-  column( name ) : string
-  column( detector ) : bool
+  column( name ) : string 
+  column( controlDate ) : DateTimeInterface 
+  column( detector ) : bool 
 }
 
-table( container ) {
+table( Container ) {
   primary_key( id ) : int
-  column( serialNumber ) : string
-  column( capacity ) : float
-  column( fluidQuantity ) : float
+  column( serialNumber ) : string 
+  column( capacity ) : float 
+  column( fluidQuantity ) : float 
   foreign_key( fluid ) : Fluid <<FK>>
 }
 
-table( equipment ) {
+table( Equipment ) {
   primary_key( id ) : int
-  column( name ) : string
-  column( weight ) : float
-  column( co2EqTonnage ) : float
-  column( leakDetectionSystem ) : bool
-  column( controlFrequency ) : int
+  column( name ) : string 
+  column( weight ) : float 
+  column( co2EqTonnage ) : float 
+  column( leakDetectionSystem ) : bool 
+  column( controlFrequency ) : int 
   foreign_key( fluid ) : Fluid <<FK>>
 }
 
-table( fluid ) {
+table( Fluid ) {
   primary_key( id ) : int
-  column( name ) : string
+  column( name ) : string 
   foreign_key( fluidType ) : FluidType <<FK>>
 }
 
-table( fluidtype ) {
+table( FluidType ) {
   primary_key( id ) : int
-  column( name ) : string
-  column( flammable ) : bool
+  column( name ) : string 
+  column( flammable ) : bool 
 }
 
-table( group ) {
+table( Group ) {
   primary_key( id ) : int
-  column( name ) : string
+  column( name ) : string 
 }
 
-table( intervention ) {
+table( Intervention ) {
   primary_key( id ) : int
-  column( virginFluidQuantity ) : float
-  column( recycledFluidQuantity ) : float
-  column( regeneratedFluidQuantity ) : float
-  column( forProcessingFluidQuantity ) : float
-  column( bsffNumber ) : string
-  column( reusableFluidQuantity ) : float
-  column( collectedFluidDestination ) : string
-  column( remarks ) : string
+  column( date ) : DateTimeInterface 
+  column( virginFluidQuantity ) : float 
+  column( recycledFluidQuantity ) : float 
+  column( regeneratedFluidQuantity ) : float 
+  column( forProcessingFluidQuantity ) : float 
+  column( bsffNumber ) : string 
+  column( reusableFluidQuantity ) : float 
+  column( collectedFluidDestination ) : string 
+  column( remarks ) : string 
   foreign_key( interventionType ) : InterventionType <<FK>>
-  column( otherInterventionType ) : string
-  column( leaks ) : bool
+  column( otherInterventionType ) : string 
+  column( leaks ) : bool 
   foreign_key( equipment ) : Equipment <<FK>>
   foreign_key( container ) : Container <<FK>>
   foreign_key( accessory ) : Accessory <<FK>>
   foreign_key( user ) : User <<FK>>
-  column( pdfPath ) : string
+  column( pdfPath ) : string 
 }
 
-table( interventiontype ) {
+table( InterventionType ) {
   primary_key( id ) : int
-  column( name ) : string
+  column( name ) : string 
 }
 
-table( leakage ) {
+table( Leakage ) {
   primary_key( id ) : int
-  column( num ) : int
-  column( count ) : int
-  column( location ) : string
-  column( fixed ) : bool
+  column( num ) : int 
+  column( count ) : int 
+  column( location ) : string 
+  column( fixed ) : bool 
   foreign_key( intervention ) : Intervention <<FK>>
 }
 
-table( parameter ) {
+table( Parameter ) {
   primary_key( id ) : int
-  column( parameter ) : string
-  column( value ) : string
+  column( parameter ) : string 
+  column( value ) : string 
 }
 
-table( user ) {
+table( User ) {
   primary_key( id ) : int
-  column( userId ) : string
-  column( roles ) : 
-  column( password ) : string
-  column( firstName ) : string
-  column( lastName ) : string
+  column( userId ) : string UNIQUE
+  column( roles ) : json 
+  column( password ) : string 
+  column( firstName ) : string 
+  column( lastName ) : string 
   foreign_key( userGroup ) : Group <<FK>>
 }
-container }|--|| fluid
-equipment }|--|| fluid
-fluid }|--|| fluidtype
-intervention }|--|| interventiontype
-intervention }|--|| equipment
-intervention }|--|| container
-intervention }|--|| accessory
-intervention }|--|| user
-leakage }|--|| intervention
-user }|--|| group
+
+Container "*" -- "1" Fluid
+Equipment "*" -- "1" Fluid
+Fluid "*" -- "1" FluidType
+Intervention "*" -- "1" InterventionType
+Intervention "*" -- "1" Equipment
+Intervention "*" -- "1" Container
+Intervention "*" -- "1" Accessory
+Intervention "*" -- "1" User
+Leakage "*" -- "1" Intervention
+User "*" -- "1" Group
+
 @enduml

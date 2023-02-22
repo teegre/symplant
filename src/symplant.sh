@@ -10,11 +10,12 @@ PROJECT_DIR=${1:-.}
 
 echo "Generating diagram..."
 
-UML_FILE="${PROJECT_DIR}/classes.plantuml"
+UML_FILE="${PROJECT_DIR}/classes.puml"
 PNG_FILE="${PROJECT_DIR}/classes.png"
 
 HEADER="$(cat << EOB
 @startuml
+
 !define table(x) entity x << (T, white) >>
 !define primary_key(x) <b><&key> x</b>
 !define column(x) <&media-record> x
@@ -26,35 +27,85 @@ FOOTER="@enduml"
 
 declare -a RELATIONS
 
+read_relation() {
+  unset relation_data
+  declare -gA relation_data
+  IFS=',' read -a data <<< "$1"
+  for info in "${data[@]}"; do
+    [[ $info =~ ^[[:blank:]]?(.+):[[:blank:]](.+)$ ]] &&
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+      [[ $key == "targetEntity" ]] &&
+        value="${value/::class}"
+      relation_data[$key]="$value"
+  done
+  # for key in "${!relation_data[@]}"; do
+  #   echo -n "${key}: ${relation_data[$key]} / "
+  # done
+  # echo
+}
+
+read_field() {
+  unset field_data
+  declare -gA field_data
+  IFS=',' read -a data <<< "$1"
+  for info in "${data[@]}"; do
+    [[ $info =~ ^[[:blank:]]?(.+):[[:blank:]](.+)$ ]] && {
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+      [[ $key == "type" ]] &&
+        value="${value//\'}"
+      field_data[$key]="$value"
+    }
+  done
+}
+
 read_entity() {
   # Get entity name, fields and data types
   PRIMARY='^#\[ORM\\Id\]$'
-  COLUMN='^#\[ORM\\Column(\(.+\))?\]$'
-  FOREIGN12='^#\[ORM\\OneToMany(\(.+\))?\]$'
-  FOREIGN21='^#\[ORM\\ManyToOne(\(.+\))?\]$'
-  FOREIGN11='^#\[ORM\\OneToOne(\(.+\))?\]$'
-  FOREIGN22='^#\[ORM\\ManyToMany(\(.+\))?\]$'
+  COLUMN='^#\[ORM\\Column\(?(.+)?\)\]$'
+  FOREIGN12='^#\[ORM\\OneToMany\((.+)\)\]$'
+  FOREIGN21='^#\[ORM\\ManyToOne\((.+)\)\]$'
+  FOREIGN11='^#\[ORM\\OneToOne\((.+)\)\]$'
+  FOREIGN22='^#\[ORM\\ManyToMany\((.+)\)\]$'
   CLASS='^class[[:blank:]]([A-Za-z]+)([[:space:]].*)?$'
-  FIELD='^private[[:blank:]]\??([A-Za-z0-9]+)?[[:blank:]]?\$([A-Za-z0-9]+)'
+  FIELD='^private[[:blank:]]\??\\?([A-Za-z0-9]+)?[[:blank:]]?\$([A-Za-z0-9_-]+)'
 
   while read -r line; do
 
     [[ $line =~ $CLASS ]] && {
       entity="${BASH_REMATCH[1]}"
       echo -e "\ntable( ${entity} ) {" >> "$UML_FILE"
+      echo " → Processing $entity"
     }
 
+    #[ORM\OneToMany(targetEntity: Record::class, mappedBy: 'artist_id', orphanRemoval: true, cascade: ['persist', 'remove'])]
+    #[ORM\Column(type: 'string', length: 255)]
+
     [[ $line =~ $PRIMARY ]] && primary=1
-    [[ $line =~ $FOREIGN12 ]] && foreign12=1
-    [[ $line =~ $FOREIGN21 ]] && foreign21=1
-    [[ $line =~ $FOREIGN11 ]] && foreign11=1
-    [[ $line =~ $FOREIGN22 ]] && foreign22=1
+    [[ $line =~ $FOREIGN12 ]] && { foreign12=1; read_relation "${BASH_REMATCH[1]}"; }
+    [[ $line =~ $FOREIGN21 ]] && { foreign21=1; read_relation "${BASH_REMATCH[1]}"; }
+    [[ $line =~ $FOREIGN11 ]] && { foreign11=1; read_relation "${BASH_REMATCH[1]}"; }
+    [[ $line =~ $FOREIGN22 ]] && { foreign22=1; read_relation "${BASH_REMATCH[1]}"; }
+
+    [[ $line =~ $COLUMN ]] && read_field "${BASH_REMATCH[1]}"
 
     [[ $line =~ $FIELD ]] && {
       field="${BASH_REMATCH[2]}"
       datatype="${BASH_REMATCH[1]}"
 
-      # echo "$field : $datatype PK($primary) FK1($foreign1) FK2($foreign2)"
+      [[ ${field_data[unique]} == true ]] &&
+        unique="UNIQUE"
+      [[ ${field_data[unique]} == true ]] ||
+        unset unique
+
+      [[ $field ]] || {
+        field=$datatype
+        datatype="${field_data[type]}"
+      }
+
+      [[ $datatype ]] ||
+        datatype="${field_data[type]}"
 
       [[ $primary ]] && {
         echo "  primary_key( $field ) : $datatype" >> "$UML_FILE"
@@ -66,8 +117,11 @@ read_entity() {
           unset foreign12
           continue
         }
-        echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
-        RELATIONS+=("${entity} }||--| ${datatype}")
+        target_entity="${relation_data[targetEntity]}"
+        [[ $target_entity ]] || target_entity="$datatype"
+
+        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        RELATIONS+=("${entity} \"1\" -- \"*\" ${target_entity}")
         unset foreign12
         continue
       }
@@ -76,8 +130,11 @@ read_entity() {
           unset foreign21
           continue
         }
-        echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
-        RELATIONS+=("${entity} }|--|| ${datatype}")
+        target_entity=${relation_data[targetEntity]}
+        [[ $target_entity ]] || target_entity="$datatype"
+
+        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        RELATIONS+=("${entity} \"*\" -- \"1\" ${target_entity}")
         unset foreign21
         continue
       }
@@ -86,8 +143,11 @@ read_entity() {
           unset foreign11
           continue
         }
-        echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
-        RELATIONS+=("${entity} }|--| ${datatype}")
+        target_entity="${relation_data[targetEntity]}"
+        [[ $target_entity == "" ]] && target_entity="$datatype"
+
+        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        RELATIONS+=("${entity} \"1\" -- \"1\" ${target_entity}")
         unset foreign11
         continue
       }
@@ -96,13 +156,17 @@ read_entity() {
           unset foreign22
           continue
         }
-        echo "  foreign_key( $field ) : $datatype <<FK>>" >> "$UML_FILE"
-        RELATIONS+=("${entity} }||--|| ${datatype}")
+        target_entity="${relation_data[targetEntity]}"
+        [[ $target_entity == "" ]] && target_entity="$datatype"
+
+        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        RELATIONS+=("${entity} \"*\" -- \"*\" ${target_entity}")
         unset foreign22
         continue
       }
       
-      echo "  column( $field ) : $datatype" >> "$UML_FILE"
+      echo "  column( $field ) : $datatype $unique" >> "$UML_FILE"
+
     }
   done < $1
   echo "}" >> "$UML_FILE"
@@ -114,11 +178,13 @@ for file in $PROJECT_DIR/src/Entity/*; do
   read_entity "$file"
 done
 
+echo >> "$UML_FILE"
+
 for relation in "${RELATIONS[@]}"; do
   echo "$relation" >> "$UML_FILE"
 done
 
-echo "$FOOTER" >> "$UML_FILE"
+echo -e "\n$FOOTER" >> "$UML_FILE"
 
 echo "Exporting..."
 
@@ -129,4 +195,4 @@ plantuml "$UML_FILE" || {
 
 echo "Done."
 
-feh --zoom 100 "$PNG_FILE"
+feh --zoom 90 "$PNG_FILE"
