@@ -3,7 +3,6 @@
 !define table(x) entity x << (T, white) >>
 !define primary_key(x) <b><&key> x</b>
 !define column(x) <&media-record> x
-!define foreign_key(x) <&key> x
 
 table( Accessory ) {
   primary_key( id ) : int
@@ -17,7 +16,6 @@ table( Container ) {
   column( serialNumber ) : string 
   column( capacity ) : float 
   column( fluidQuantity ) : float 
-  foreign_key( fluid ) : Fluid <<FK>>
 }
 
 table( Equipment ) {
@@ -27,13 +25,11 @@ table( Equipment ) {
   column( co2EqTonnage ) : float 
   column( leakDetectionSystem ) : bool 
   column( controlFrequency ) : int 
-  foreign_key( fluid ) : Fluid <<FK>>
 }
 
 table( Fluid ) {
   primary_key( id ) : int
   column( name ) : string 
-  foreign_key( fluidType ) : FluidType <<FK>>
 }
 
 table( FluidType ) {
@@ -58,13 +54,8 @@ table( Intervention ) {
   column( reusableFluidQuantity ) : float 
   column( collectedFluidDestination ) : string 
   column( remarks ) : string 
-  foreign_key( interventionType ) : InterventionType <<FK>>
   column( otherInterventionType ) : string 
   column( leaks ) : bool 
-  foreign_key( equipment ) : Equipment <<FK>>
-  foreign_key( container ) : Container <<FK>>
-  foreign_key( accessory ) : Accessory <<FK>>
-  foreign_key( user ) : User <<FK>>
   column( pdfPath ) : string 
 }
 
@@ -79,7 +70,6 @@ table( Leakage ) {
   column( count ) : int 
   column( location ) : string 
   column( fixed ) : bool 
-  foreign_key( intervention ) : Intervention <<FK>>
 }
 
 table( Parameter ) {
@@ -95,7 +85,6 @@ table( User ) {
   column( password ) : string 
   column( firstName ) : string 
   column( lastName ) : string 
-  foreign_key( userGroup ) : Group <<FK>>
 }
 
 Container "*" -- "1" Fluid
