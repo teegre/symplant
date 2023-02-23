@@ -19,7 +19,6 @@ HEADER="$(cat << EOB
 !define table(x) entity x << (T, white) >>
 !define primary_key(x) <b><&key> x</b>
 !define column(x) <&media-record> x
-!define foreign_key(x) <&key> x
 EOB
 )"
 
@@ -69,7 +68,7 @@ read_entity() {
   FOREIGN11='^#\[ORM\\OneToOne\((.+)\)\]$'
   FOREIGN22='^#\[ORM\\ManyToMany\((.+)\)\]$'
   CLASS='^class[[:blank:]]([A-Za-z]+)([[:space:]].*)?$'
-  FIELD='^private[[:blank:]]\??\\?([A-Za-z0-9]+)?[[:blank:]]?\$([A-Za-z0-9_-]+)'
+  FIELD='^private[[:blank:]](readonly)?[[:blank:]]?\??\\?([A-Za-z0-9]+)?[[:blank:]]?\$([A-Za-z0-9_-]+)'
 
   while read -r line; do
 
@@ -91,8 +90,13 @@ read_entity() {
     [[ $line =~ $COLUMN ]] && read_field "${BASH_REMATCH[1]}"
 
     [[ $line =~ $FIELD ]] && {
-      field="${BASH_REMATCH[2]}"
-      datatype="${BASH_REMATCH[1]}"
+      if [[ ${#BASH_REMATCH[@]} -eq 4 ]]; then
+        field="${BASH_REMATCH[3]}"
+        datatype="${BASH_REMATCH[2]}"
+      else
+        field="${BASH_REMATCH[2]}"
+        datatype="${BASH_REMATCH[1]}"
+      fi
 
       [[ ${field_data[unique]} == true ]] &&
         unique="UNIQUE"
@@ -119,8 +123,9 @@ read_entity() {
         }
         target_entity="${relation_data[targetEntity]}"
         [[ $target_entity ]] || target_entity="$datatype"
+        [[ $target_entity == "self" ]] && target_entity="$entity"
 
-        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        # echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
         RELATIONS+=("${entity} \"1\" -- \"*\" ${target_entity}")
         unset foreign12
         continue
@@ -132,8 +137,9 @@ read_entity() {
         }
         target_entity=${relation_data[targetEntity]}
         [[ $target_entity ]] || target_entity="$datatype"
+        [[ $target_entity == "self" ]] && target_entity="$entity"
 
-        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        # echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
         RELATIONS+=("${entity} \"*\" -- \"1\" ${target_entity}")
         unset foreign21
         continue
@@ -145,8 +151,9 @@ read_entity() {
         }
         target_entity="${relation_data[targetEntity]}"
         [[ $target_entity == "" ]] && target_entity="$datatype"
+        [[ $target_entity == "self" ]] && target_entity="$entity"
 
-        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        # echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
         RELATIONS+=("${entity} \"1\" -- \"1\" ${target_entity}")
         unset foreign11
         continue
@@ -158,8 +165,9 @@ read_entity() {
         }
         target_entity="${relation_data[targetEntity]}"
         [[ $target_entity == "" ]] && target_entity="$datatype"
+        [[ $target_entity == "self" ]] && target_entity="$entity"
 
-        echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
+        # echo "  foreign_key( $field ) : $target_entity <<FK>>" >> "$UML_FILE"
         RELATIONS+=("${entity} \"*\" -- \"*\" ${target_entity}")
         unset foreign22
         continue
@@ -193,6 +201,7 @@ plantuml "$UML_FILE" || {
   exit 1
 }
 
+echo "Diagram exported as ${PNG_FILE}"
 echo "Done."
 
-feh --zoom 90 "$PNG_FILE"
+which feh &> /dev/null && feh --zoom 90 "$PNG_FILE"
