@@ -1,5 +1,7 @@
 #! /usr/bin/env bash
 
+__version="20240217-0.2"
+#
 # Project directory
 PROJECT_DIR=${1:-.}
 
@@ -8,10 +10,10 @@ PROJECT_DIR=${1:-.}
   exit 1
 }
 
-echo "Generating diagram..."
+echo "> Generating diagram..."
 
-UML_FILE="${PROJECT_DIR}/classes.puml"
-PNG_FILE="${PROJECT_DIR}/classes.png"
+UML_FILE="${PROJECT_DIR}classes.puml"
+PNG_FILE="${PROJECT_DIR}classes.png"
 
 HEADER="$(cat << EOB
 @startuml
@@ -194,14 +196,26 @@ done
 
 echo -e "\n$FOOTER" >> "$UML_FILE"
 
-echo "Exporting..."
+# Check whether plantuml executable is available.
+which plantuml &> /dev/null
+_puml=$?
 
-plantuml "$UML_FILE" || {
-  >&2 echo "An error occured."
+[[ $_puml ]] && {
+  echo "> Compiling..."
+  plantuml "$UML_FILE" || {
+    >&2 echo "An error occured."
+    exit 1
+  }
+}
+
+[[ $_puml ]] || {
+  >&2 echo "Error: could not find 'plantuml' executable. No image generated."
+  >&2 echo "Saved: ${UML_FILE}"
   exit 1
 }
 
-echo "Diagram exported as ${PNG_FILE}"
 echo "Done."
+echo "Saved ${PNG_FILE}"
 
+# Display diagram if feh is available.
 which feh &> /dev/null && feh --zoom 90 "$PNG_FILE"
