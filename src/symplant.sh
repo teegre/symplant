@@ -3,7 +3,7 @@
 __version="20240217-0.2"
 #
 # Project directory
-PROJECT_DIR=${1:-.}
+PROJECT_DIR=${1:-./}
 
 [[ -s "$PROJECT_DIR/symfony.lock" ]] || {
   >&2 echo "Error: not a Symfony project directory."
